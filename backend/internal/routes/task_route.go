@@ -28,4 +28,5 @@ func TaskRoutes(router fiber.Router) {
 	taskRoutes.Post("/add", taskHandler.CreateTask)        // Create new task
 	taskRoutes.Put("/:id", taskHandler.UpdateTask)         // Update existing task
 	taskRoutes.Delete("/:id", taskHandler.DeleteTask)      // Delete task
+	taskRoutes.Patch("/:id/completed", taskHandler.UpdateTaskStatus)
 }

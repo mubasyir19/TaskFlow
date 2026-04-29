@@ -5,9 +5,14 @@ import (
 	"backend/internal/requests"
 	"backend/internal/response"
 	"backend/internal/services"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type taskHandler struct {
@@ -266,7 +271,6 @@ func (h *taskHandler) DeleteTask(c fiber.Ctx) error {
 	})
 }
 
-// GetTaskSummary mendapatkan ringkasan task berdasarkan status
 func (h *taskHandler) GetTaskSummary(c fiber.Ctx) error {
 	// Get user ID from context
 	userID := c.Locals("user_id")
@@ -311,5 +315,106 @@ func (h *taskHandler) GetTaskSummary(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"data":    summary,
+	})
+}
+
+func (h *taskHandler) UpdateTaskStatus(c fiber.Ctx) error {
+	id := c.Params("id")
+
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "id is required",
+		})
+	}
+
+	if _, err := uuid.Parse(id); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "invalid id format",
+		})
+	}
+
+	userID := c.Locals("user_id")
+	if userID == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+	}
+
+	var req struct {
+		IsCompleted bool `json:"is_completed"`
+	}
+
+	bodyString := string(c.Body())
+	if bodyString == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "invalid request body, expected: { \"is_completed\": true/false }",
+		})
+	}
+
+	if err := json.Unmarshal(c.Body(), &req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "invalid request body, expected: { \"is_completed\": true/false }",
+		})
+	}
+
+	existingTask, err := h.service.GetTaskByID(id)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "task not found",
+		})
+	}
+
+	if existingTask.UserID.String() != userID.(string) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "You don't have permission to update this task",
+		})
+	}
+
+	err = h.service.CompleteTask(id, req.IsCompleted)
+
+	if err != nil {
+		statusCode := fiber.StatusInternalServerError
+		message := "failed to update task status"
+
+		switch {
+		case errors.Is(err, errors.New("task not found")) || err.Error() == "task not found":
+			statusCode = fiber.StatusNotFound
+			message = "task not found"
+		case strings.Contains(err.Error(), "task not found"):
+			statusCode = fiber.StatusNotFound
+			message = "task not found"
+		case strings.Contains(err.Error(), "task is already completed"):
+			statusCode = fiber.StatusBadRequest
+			message = "task is already completed"
+		case strings.Contains(err.Error(), "task is already uncompleted"):
+			statusCode = fiber.StatusBadRequest
+			message = "task is already uncompleted"
+		}
+
+		return c.Status(statusCode).JSON(fiber.Map{
+			"success": false,
+			"message": message,
+		})
+	}
+
+	task, err := h.service.GetTaskByID(id)
+	if err != nil {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success": true,
+			"message": fmt.Sprintf("successfully updated task status to %v", req.IsCompleted),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": fmt.Sprintf("successfully updated task status to %v", req.IsCompleted),
+		"data":    task,
 	})
 }

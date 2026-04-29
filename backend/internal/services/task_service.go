@@ -19,6 +19,7 @@ type TaskService interface {
 	AddNewTask(userID string, req *requests.AddTaskRequest) (*response.TaskResponse, error)
 	UpdateTask(id string, req *requests.UpdateTaskRequest) (*models.Task, error)
 	DeleteTask(id string) error
+	CompleteTask(id string, isCompleted bool) error
 }
 
 type taskService struct {
@@ -179,6 +180,33 @@ func (s *taskService) DeleteTask(id string) error {
 	// Delete task
 	if err := s.repositories.Delete(id); err != nil {
 		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	return nil
+}
+
+func (s *taskService) CompleteTask(id string, isCompleted bool) error {
+	existingTask, err := s.repositories.FindByID(id)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	if existingTask == nil {
+		return errors.New("task not found")
+	}
+
+	if existingTask.IsCompleted == isCompleted {
+		if isCompleted {
+			return errors.New("task is already completed")
+		}
+		return errors.New("task is already uncompleted")
+	}
+
+	// Update status
+	existingTask.IsCompleted = isCompleted
+
+	if err := s.repositories.Update(existingTask); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
 	}
 
 	return nil
