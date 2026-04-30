@@ -27,7 +27,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: task-backend
-    restart: always
+    restart: unless-stoped
     ports:
       - "8080:8080"
     environment:
@@ -50,6 +50,20 @@ services:
       - /app/tmp
 
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: task-frontend
+    restart: unless-stoped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API=${NEXT_PUBLIC_API}
+      - NODE_ENV=${NODE_ENV}
+    depends_on:
+      - backend
+    networks:
+      - task-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
