@@ -1,5 +1,9 @@
 import { api } from "@/lib/axios";
-import { addTaskResponseSchema, GetTasksSchema } from "@/schemas/task.schema";
+import {
+  addTaskResponseSchema,
+  GetTasksSchema,
+  updateTaskSchema,
+} from "@/schemas/task.schema";
 import { AddTaskForm } from "@/types/task";
 
 export const getTasksService = async (completed?: boolean, search?: string) => {
@@ -18,16 +22,12 @@ export const getTasksService = async (completed?: boolean, search?: string) => {
     url += `?${queryString}`;
   }
 
-  // const res = await api.get(`/tasks?completed=${completed}&search=${search}`);
   const res = await api.get(url);
-  // console.log("res = ", res.data);
   const validatedRes = GetTasksSchema.safeParse(res.data);
-  // console.log("validatedRes = ", validatedRes);
   return validatedRes.data;
 };
 
 export const addNewTasksService = async (payload: AddTaskForm) => {
-  // console.log("payload = ", payload);
   const formattedPayload = {
     title: payload.title,
     description: payload.description,
@@ -39,5 +39,16 @@ export const addNewTasksService = async (payload: AddTaskForm) => {
   };
   const res = await api.post("/tasks/add", formattedPayload);
   const validatedRes = addTaskResponseSchema.parse(res.data);
+  return validatedRes;
+};
+
+export const updateStatusCompleteTask = async (
+  id: string,
+  is_completed: boolean,
+) => {
+  const res = await api.patch(`/tasks/${id}/completed`, {
+    is_completed,
+  });
+  const validatedRes = updateTaskSchema.parse(res.data);
   return validatedRes;
 };
