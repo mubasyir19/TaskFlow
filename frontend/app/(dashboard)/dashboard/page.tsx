@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const getCompletedFilter = (filter: FilterCompleted): boolean | undefined => {
     if (filter === "completed") return true;
     if (filter === "active") return false;
-    return undefined; // 'all' berarti tidak ada filter
+    return undefined;
   };
 
   const completedFilter = getCompletedFilter(filterCompleted);
@@ -36,6 +36,7 @@ export default function DashboardPage() {
     completedFilter,
     debouncedSearch,
   );
+
   return (
     <div>
       <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
